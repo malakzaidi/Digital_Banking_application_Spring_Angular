@@ -185,10 +185,3 @@ mvn test
 - Mobile banking interface
 - Administrative dashboard
 
-## License
-
-[License information here]
-
-## Contributors
-
-[List of contributors]
