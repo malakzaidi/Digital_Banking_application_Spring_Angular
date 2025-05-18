@@ -226,32 +226,44 @@ public class BankServiceImpl implements BankAccountsService {
     public List<BankAccountDTO> bankAccountList() {
         List<BankAccount> bankAccounts = bankAccountRepository.findAll();
         return bankAccounts.stream().map(bankAccount -> {
+            // Get customer information
+            Long customerId = null;
+            String customerName = null;
+            if (bankAccount.getCustomer() != null) {
+                customerId = bankAccount.getCustomer().getId();
+                customerName = bankAccount.getCustomer().getName();
+            }
+
             if (bankAccount instanceof CurrentAccount) {
                 CurrentBankAccountDTO dto = new CurrentBankAccountDTO();
                 dto.setId(bankAccount.getId());
                 dto.setBalance(bankAccount.getBalance());
-                dto.setCustomerId(bankAccount.getCustomer() != null ? bankAccount.getCustomer().getId() : null);
+                dto.setCustomerId(customerId);
+                dto.setCustomerName(customerName); // Set customer name
                 dto.setType("CurrentAccount");
-                dto.setCreatedAt(bankAccount.getCreatedAt().toString());
+                dto.setCreatedAt(bankAccount.getCreatedAt());
                 dto.setOverDraft(((CurrentAccount) bankAccount).getOverDraft());
                 return dto;
             } else if (bankAccount instanceof SavingAccount) {
                 SavingBankAccountDTO dto = new SavingBankAccountDTO();
                 dto.setId(bankAccount.getId());
                 dto.setBalance(bankAccount.getBalance());
-                dto.setCustomerId(bankAccount.getCustomer() != null ? bankAccount.getCustomer().getId() : null);
+                dto.setCustomerId(customerId);
+                dto.setCustomerName(customerName); // Set customer name
                 dto.setType("SavingAccount");
-                dto.setCreatedAt(bankAccount.getCreatedAt().toString());
+                dto.setCreatedAt(bankAccount.getCreatedAt());
                 dto.setInterestRate(((SavingAccount) bankAccount).getInterestRate());
                 return dto;
             }
-            // Fallback for unknown types (should not happen if all accounts are Current or Saving)
+
+            // Fallback for unknown types
             BankAccountDTO dto = new BankAccountDTO();
             dto.setId(bankAccount.getId());
             dto.setBalance(bankAccount.getBalance());
-            dto.setCustomerId(bankAccount.getCustomer() != null ? bankAccount.getCustomer().getId() : null);
+            dto.setCustomerId(customerId);
+            dto.setCustomerName(customerName); // Set customer name
             dto.setType("Unknown");
-            dto.setCreatedAt(bankAccount.getCreatedAt().toString());
+            dto.setCreatedAt(bankAccount.getCreatedAt());
             return dto;
         }).collect(Collectors.toList());
     }
