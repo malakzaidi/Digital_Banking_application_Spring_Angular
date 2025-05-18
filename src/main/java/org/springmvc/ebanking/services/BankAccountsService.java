@@ -26,5 +26,5 @@ public interface BankAccountsService {
    List<CustomerDTO> searchCustomers(String keyword);
    CustomerDTO saveCustomer(CustomerDTO customerDTO);
    CustomerDTO updateCustomer(CustomerDTO customerDTO);
-   void deleteCustomer(Long customerId);
+   void deleteCustomer(Long customerId) throws CustomerNotFoundException ;
 }

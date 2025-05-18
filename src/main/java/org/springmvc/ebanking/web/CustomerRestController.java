@@ -48,7 +48,7 @@ public class CustomerRestController {
     }
 
     @DeleteMapping("/customers/{id}")
-    public void deleteCustomer(@PathVariable Long id) {
+    public void deleteCustomer(@PathVariable Long id) throws CustomerNotFoundException {
         log.info("Deleting customer with ID: {}", id);
         bankAccountService.deleteCustomer(id);
     }

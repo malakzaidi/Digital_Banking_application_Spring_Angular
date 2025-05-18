@@ -33,6 +33,47 @@ public class BankServiceImpl implements BankAccountsService {
     private BankAccountMapperImpl dtoMapper;
 
     @Override
+    public void deleteBankAccount(String accountId) throws BankAccountNotFoundException {
+        log.info("Service: Deleting bank account: {}", accountId);
+        BankAccount account = bankAccountRepository.findById(accountId)
+                .orElseThrow(() -> new BankAccountNotFoundException("Bank account not found: " + accountId));
+        if (account.getBalance() != 0) {
+            log.warn("Cannot delete account {} with non-zero balance: {}", accountId, account.getBalance());
+            throw new IllegalStateException("Cannot delete account with non-zero balance");
+        }
+        // Delete associated account operations
+        List<AccountOperation> operations = accountOperationRepository.findByBankAccountId(accountId);
+        if (!operations.isEmpty()) {
+            log.info("Deleting {} account operations for bank account: {}", operations.size(), accountId);
+            accountOperationRepository.deleteAll(operations);
+        }
+        bankAccountRepository.delete(account);
+        log.info("Bank account deleted successfully: {}", accountId);
+    }
+
+    @Override
+    public void deleteCustomer(Long customerId) throws CustomerNotFoundException {
+        log.info("Deleting customer with ID: {}", customerId);
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new CustomerNotFoundException("Customer not found: " + customerId));
+        // Delete associated bank accounts (which will delete their operations)
+        List<BankAccount> accounts = bankAccountRepository.findByCustomerId(customerId);
+        if (!accounts.isEmpty()) {
+            log.info("Deleting {} bank accounts for customer ID: {}", accounts.size(), customerId);
+            for (BankAccount account : accounts) {
+                try {
+                    deleteBankAccount(account.getId());
+                } catch (BankAccountNotFoundException e) {
+                    log.error("Bank account {} not found for customer {}", account.getId(), customerId);
+                }
+            }
+        }
+        customerRepository.delete(customer);
+        log.info("Customer deleted successfully: {}", customerId);
+    }
+
+    // Other methods remain unchanged as per user request
+    @Override
     public CustomerDTO saveCustomer(CustomerDTO customerDTO) {
         log.info("Saving new Customer");
         Customer customer=dtoMapper.fromCustomerDTO(customerDTO);
@@ -76,14 +117,6 @@ public class BankServiceImpl implements BankAccountsService {
         List<CustomerDTO> customerDTOS = customers.stream()
                 .map(customer -> dtoMapper.fromCustomer(customer))
                 .collect(Collectors.toList());
-        /*
-        List<CustomerDTO> customerDTOS=new ArrayList<>();
-        for (Customer customer:customers){
-            CustomerDTO customerDTO=dtoMapper.fromCustomer(customer);
-            customerDTOS.add(customerDTO);
-        }
-        *
-         */
         return customerDTOS;
     }
 
@@ -137,6 +170,7 @@ public class BankServiceImpl implements BankAccountsService {
         debit(accountIdSource,amount,"Transfer to "+accountIdDestination);
         credit(accountIdDestination,amount,"Transfer from "+accountIdSource);
     }
+
     @Override
     public List<BankAccountDTO> bankAccountList(){
         List<BankAccount> bankAccounts = bankAccountRepository.findAll();
@@ -151,6 +185,7 @@ public class BankServiceImpl implements BankAccountsService {
         }).collect(Collectors.toList());
         return bankAccountDTOS;
     }
+
     @Override
     public CustomerDTO getCustomer(Long customerId) throws CustomerNotFoundException {
         Customer customer = customerRepository.findById(customerId)
@@ -165,10 +200,7 @@ public class BankServiceImpl implements BankAccountsService {
         Customer savedCustomer = customerRepository.save(customer);
         return dtoMapper.fromCustomer(savedCustomer);
     }
-    @Override
-    public void deleteCustomer(Long customerId){
-        customerRepository.deleteById(customerId);
-    }
+
     @Override
     public List<AccountOperationDTO> accountHistory(String accountId){
         List<AccountOperation> accountOperations = accountOperationRepository.findByBankAccountId(accountId);
@@ -196,11 +228,5 @@ public class BankServiceImpl implements BankAccountsService {
         List<Customer> customers=customerRepository.searchCustomer(keyword);
         List<CustomerDTO> customerDTOS = customers.stream().map(cust -> dtoMapper.fromCustomer(cust)).collect(Collectors.toList());
         return customerDTOS;
-    }
-    @Override
-    public void deleteBankAccount(String accountId) throws BankAccountNotFoundException {
-        BankAccount account = bankAccountRepository.findById(accountId)
-                .orElseThrow(() -> new BankAccountNotFoundException("Bank account not found: " + accountId));
-        bankAccountRepository.delete(account);
     }
 }
