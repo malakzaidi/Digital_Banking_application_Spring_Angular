@@ -197,4 +197,10 @@ public class BankServiceImpl implements BankAccountsService {
         List<CustomerDTO> customerDTOS = customers.stream().map(cust -> dtoMapper.fromCustomer(cust)).collect(Collectors.toList());
         return customerDTOS;
     }
+    @Override
+    public void deleteBankAccount(String accountId) throws BankAccountNotFoundException {
+        BankAccount account = bankAccountRepository.findById(accountId)
+                .orElseThrow(() -> new BankAccountNotFoundException("Bank account not found: " + accountId));
+        bankAccountRepository.delete(account);
+    }
 }

@@ -54,4 +54,10 @@ public class BankAccountRestAPI {
                 transferRequestDTO.getAccountDestination(),
                 transferRequestDTO.getAmount());
     }
+    @DeleteMapping("/accounts/{accountId}")
+    public void deleteBankAccount(@PathVariable String accountId) throws BankAccountNotFoundException {
+        bankAccountService.deleteBankAccount(accountId);
+    }
+
+
 }
