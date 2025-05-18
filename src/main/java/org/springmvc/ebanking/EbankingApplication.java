@@ -26,12 +26,11 @@ public class EbankingApplication {
     public static void main(String[] args) {
         SpringApplication.run(EbankingApplication.class, args);
     }
-
     @Bean
-    CommandLineRunner commandLineRunner (BankAccountsService bankAccountsService) {
+    CommandLineRunner commandLineRunner(BankAccountsService bankAccountsService){
         return args -> {
-            Stream.of("Say","Siham","Latifa").forEach(name->{
-                Customer customer = new Customer();
+            Stream.of("Say","Siham","Samra").forEach(name->{
+                Customer customer=new Customer();
                 customer.setName(name);
                 customer.setEmail(name+"@gmail.com");
                 bankAccountsService.saveCustomer(customer);
@@ -47,25 +46,23 @@ public class EbankingApplication {
                             bankAccountsService.debit(bankAccount.getId(), 1000+Math.random()*9000,"Debit");
                         }
                     }
-
                 } catch (CustomerNotFoundException e) {
                     e.printStackTrace();
-                } catch (BalanceNotSufficientException | BankAccountNotFoundException  e) {
+                } catch (BankAccountNotFoundException e) {
+                    e.printStackTrace();
+                } catch (BalanceNotSufficientException e) {
                     e.printStackTrace();
                 }
             });
 
         };
-
-        };
     }
-
     //@Bean
     CommandLineRunner start(CustomerRepository customerRepository,
                             BankAccountRepository bankAccountRepository,
                             AccountOperationRepository accountOperationRepository){
         return args -> {
-            Stream.of("Malak","Nada","Touria").forEach(name->{
+            Stream.of("Touria","Nada","Malak").forEach(name->{
                 Customer customer=new Customer();
                 customer.setName(name);
                 customer.setEmail(name+"@gmail.com");
@@ -103,5 +100,7 @@ public class EbankingApplication {
 
             });
         };
+
     }
+
 }
