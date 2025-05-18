@@ -2,10 +2,13 @@ package org.springmvc.ebanking.web;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springmvc.ebanking.dtos.CustomerDTO;
 import org.springmvc.ebanking.exceptions.CustomerNotFoundException;
 import org.springmvc.ebanking.services.BankAccountsService;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 
@@ -41,15 +44,40 @@ public class CustomerRestController {
     }
 
     @PutMapping("/customers/{customerId}")
-    public CustomerDTO updateCustomer(@PathVariable Long customerId, @RequestBody CustomerDTO customerDTO) {
+    public ResponseEntity<CustomerDTO> updateCustomer(@PathVariable Long customerId, @RequestBody CustomerDTO customerDTO) {
         log.info("Updating customer ID: {} with data: {}", customerId, customerDTO);
+        if (customerDTO.getName() == null || customerDTO.getEmail() == null) {
+            log.warn("Invalid customer data: name or email is null");
+            return ResponseEntity.badRequest().build();
+        }
         customerDTO.setId(customerId);
-        return bankAccountService.updateCustomer(customerDTO);
+        try {
+            CustomerDTO updatedCustomer = bankAccountService.updateCustomer(customerDTO);
+            return ResponseEntity.ok(updatedCustomer);
+        } catch (Exception e) {
+            log.error("Failed to update customer ID: {}: {}", customerId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @DeleteMapping("/customers/{id}")
-    public void deleteCustomer(@PathVariable Long id) throws CustomerNotFoundException {
+    public ResponseEntity<Void> deleteCustomer(@PathVariable Long id) {
         log.info("Deleting customer with ID: {}", id);
-        bankAccountService.deleteCustomer(id);
+        try {
+            bankAccountService.deleteCustomer(id);
+            return ResponseEntity.ok().build();
+        } catch (CustomerNotFoundException e) {
+            log.error("Customer not found: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            log.error("Cannot delete customer {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        } catch (DataIntegrityViolationException e) {
+            log.error("Cannot delete customer {} due to database constraints: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            log.error("Failed to delete customer {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

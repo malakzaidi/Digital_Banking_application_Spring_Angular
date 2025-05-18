@@ -33,15 +33,69 @@ public class BankServiceImpl implements BankAccountsService {
     private BankAccountMapperImpl dtoMapper;
 
     @Override
+    public CurrentBankAccountDTO saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException {
+        log.info("Saving current account for customer ID: {}, initialBalance: {}, overDraft: {}", customerId, initialBalance, overDraft);
+        if (initialBalance < 0) {
+            log.warn("Invalid initial balance: {} for customer ID: {}", initialBalance, customerId);
+            throw new IllegalArgumentException("Initial balance cannot be negative");
+        }
+        if (overDraft < 0) {
+            log.warn("Invalid overDraft: {} for customer ID: {}", overDraft, customerId);
+            throw new IllegalArgumentException("Overdraft cannot be negative");
+        }
+        Customer customer = customerRepository.findById(customerId).orElse(null);
+        if (customer == null) {
+            log.error("Customer not found: {}", customerId);
+            throw new CustomerNotFoundException("Customer not found");
+        }
+        CurrentAccount currentAccount = new CurrentAccount();
+        currentAccount.setId(UUID.randomUUID().toString());
+        currentAccount.setCreatedAt(new Date());
+        currentAccount.setBalance(initialBalance); // Allow zero balance
+        currentAccount.setOverDraft(overDraft);
+        currentAccount.setCustomer(customer);
+        CurrentAccount savedBankAccount = bankAccountRepository.save(currentAccount);
+        log.info("Current account saved successfully: {}", savedBankAccount.getId());
+        return dtoMapper.fromCurrentBankAccount(savedBankAccount);
+    }
+
+    @Override
+    public SavingBankAccountDTO saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException {
+        log.info("Saving saving account for customer ID: {}, initialBalance: {}, interestRate: {}", customerId, initialBalance, interestRate);
+        if (initialBalance < 0) {
+            log.warn("Invalid initial balance: {} for customer ID: {}", initialBalance, customerId);
+            throw new IllegalArgumentException("Initial balance cannot be negative");
+        }
+        if (interestRate < 0) {
+            log.warn("Invalid interestRate: {} for customer ID: {}", interestRate, customerId);
+            throw new IllegalArgumentException("Interest rate cannot be negative");
+        }
+        Customer customer = customerRepository.findById(customerId).orElse(null);
+        if (customer == null) {
+            log.error("Customer not found: {}", customerId);
+            throw new CustomerNotFoundException("Customer not found");
+        }
+        SavingAccount savingAccount = new SavingAccount();
+        savingAccount.setId(UUID.randomUUID().toString());
+        savingAccount.setCreatedAt(new Date());
+        savingAccount.setBalance(initialBalance); // Allow zero balance
+        savingAccount.setInterestRate(interestRate);
+        savingAccount.setCustomer(customer);
+        SavingAccount savedBankAccount = bankAccountRepository.save(savingAccount);
+        log.info("Saving account saved successfully: {}", savedBankAccount.getId());
+        return dtoMapper.fromSavingBankAccount(savedBankAccount);
+    }
+
+    // Other methods remain unchanged as per user request
+    @Override
     public void deleteBankAccount(String accountId) throws BankAccountNotFoundException {
         log.info("Service: Deleting bank account: {}", accountId);
         BankAccount account = bankAccountRepository.findById(accountId)
                 .orElseThrow(() -> new BankAccountNotFoundException("Bank account not found: " + accountId));
         if (account.getBalance() != 0) {
             log.warn("Cannot delete account {} with non-zero balance: {}", accountId, account.getBalance());
-            throw new IllegalStateException("Cannot delete account with non-zero balance");
+            throw new IllegalStateException("Cannot delete account with non-zero balance: " + accountId);
         }
-        // Delete associated account operations
         List<AccountOperation> operations = accountOperationRepository.findByBankAccountId(accountId);
         if (!operations.isEmpty()) {
             log.info("Deleting {} account operations for bank account: {}", operations.size(), accountId);
@@ -56,59 +110,36 @@ public class BankServiceImpl implements BankAccountsService {
         log.info("Deleting customer with ID: {}", customerId);
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found: " + customerId));
-        // Delete associated bank accounts (which will delete their operations)
         List<BankAccount> accounts = bankAccountRepository.findByCustomerId(customerId);
         if (!accounts.isEmpty()) {
             log.info("Deleting {} bank accounts for customer ID: {}", accounts.size(), customerId);
+            List<String> nonZeroBalanceAccounts = new java.util.ArrayList<>();
             for (BankAccount account : accounts) {
                 try {
                     deleteBankAccount(account.getId());
                 } catch (BankAccountNotFoundException e) {
                     log.error("Bank account {} not found for customer {}", account.getId(), customerId);
+                } catch (IllegalStateException e) {
+                    log.warn("Failed to delete account {}: {}", account.getId(), e.getMessage());
+                    nonZeroBalanceAccounts.add(account.getId());
                 }
+            }
+            if (!nonZeroBalanceAccounts.isEmpty()) {
+                String message = "Cannot delete customer due to non-zero balance in accounts: " + String.join(", ", nonZeroBalanceAccounts);
+                log.warn(message);
+                throw new IllegalStateException(message);
             }
         }
         customerRepository.delete(customer);
         log.info("Customer deleted successfully: {}", customerId);
     }
 
-    // Other methods remain unchanged as per user request
     @Override
     public CustomerDTO saveCustomer(CustomerDTO customerDTO) {
         log.info("Saving new Customer");
         Customer customer=dtoMapper.fromCustomerDTO(customerDTO);
         Customer savedCustomer = customerRepository.save(customer);
         return dtoMapper.fromCustomer(savedCustomer);
-    }
-
-    @Override
-    public CurrentBankAccountDTO saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException {
-        Customer customer=customerRepository.findById(customerId).orElse(null);
-        if(customer==null)
-            throw new CustomerNotFoundException("Customer not found");
-        CurrentAccount currentAccount=new CurrentAccount();
-        currentAccount.setId(UUID.randomUUID().toString());
-        currentAccount.setCreatedAt(new Date());
-        currentAccount.setBalance(initialBalance);
-        currentAccount.setOverDraft(overDraft);
-        currentAccount.setCustomer(customer);
-        CurrentAccount savedBankAccount = bankAccountRepository.save(currentAccount);
-        return dtoMapper.fromCurrentBankAccount(savedBankAccount);
-    }
-
-    @Override
-    public SavingBankAccountDTO saveSavingBankAccount(double initialBalance, double interestRate, Long customerId) throws CustomerNotFoundException {
-        Customer customer=customerRepository.findById(customerId).orElse(null);
-        if(customer==null)
-            throw new CustomerNotFoundException("Customer not found");
-        SavingAccount savingAccount=new SavingAccount();
-        savingAccount.setId(UUID.randomUUID().toString());
-        savingAccount.setCreatedAt(new Date());
-        savingAccount.setBalance(initialBalance);
-        savingAccount.setInterestRate(interestRate);
-        savingAccount.setCustomer(customer);
-        SavingAccount savedBankAccount = bankAccountRepository.save(savingAccount);
-        return dtoMapper.fromSavingBankAccount(savedBankAccount);
     }
 
     @Override

@@ -1,10 +1,13 @@
 package org.springmvc.ebanking.web;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springmvc.ebanking.dtos.*;
 import org.springmvc.ebanking.exceptions.BalanceNotSufficientException;
 import org.springmvc.ebanking.exceptions.BankAccountNotFoundException;
+import org.springmvc.ebanking.exceptions.CustomerNotFoundException;
 import org.springmvc.ebanking.services.BankAccountsService;
 
 import java.util.List;
@@ -29,6 +32,48 @@ public class BankAccountRestAPI {
     public List<BankAccountDTO> listAccounts() {
         log.info("Fetching all bank accounts");
         return bankAccountService.bankAccountList();
+    }
+
+    // NEW ENDPOINT: Create Current Account
+    @PostMapping("/accounts/current")
+    public ResponseEntity<?> saveCurrentAccount(@RequestBody CurrentAccountRequestDTO requestDTO) {
+        log.info("Creating current account with: {}", requestDTO);
+        try {
+            CurrentBankAccountDTO result = bankAccountService.saveCurrentBankAccount(
+                    requestDTO.getInitialBalance(),
+                    requestDTO.getOverDraft(),
+                    requestDTO.getCustomerId());
+            return ResponseEntity.ok(result);
+        } catch (CustomerNotFoundException e) {
+            log.error("Customer not found: {}", requestDTO.getCustomerId());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Customer not found with ID: " + requestDTO.getCustomerId());
+        } catch (Exception e) {
+            log.error("Error creating current account: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error creating current account: " + e.getMessage());
+        }
+    }
+
+    // NEW ENDPOINT: Create Saving Account
+    @PostMapping("/accounts/saving")
+    public ResponseEntity<?> saveSavingAccount(@RequestBody SavingAccountRequestDTO requestDTO) {
+        log.info("Creating saving account with: {}", requestDTO);
+        try {
+            SavingBankAccountDTO result = bankAccountService.saveSavingBankAccount(
+                    requestDTO.getInitialBalance(),
+                    requestDTO.getInterestRate(),
+                    requestDTO.getCustomerId());
+            return ResponseEntity.ok(result);
+        } catch (CustomerNotFoundException e) {
+            log.error("Customer not found: {}", requestDTO.getCustomerId());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Customer not found with ID: " + requestDTO.getCustomerId());
+        } catch (Exception e) {
+            log.error("Error creating saving account: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error creating saving account: " + e.getMessage());
+        }
     }
 
     @GetMapping("/accounts/{accountId}/operations")
