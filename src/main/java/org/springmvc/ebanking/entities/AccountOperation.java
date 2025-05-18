@@ -20,4 +20,9 @@ public class AccountOperation {
     @ManyToOne
     private BankAccount bankAccount;
     private String description;
+
+    // Added to track which user performed the operation
+    @ManyToOne
+    @JoinColumn(name = "performed_by")
+    private User performedBy;
 }

@@ -23,4 +23,21 @@ public abstract class BankAccount {
     private Customer customer;
     @OneToMany(mappedBy = "bankAccount",fetch = FetchType.LAZY)
     private List<AccountOperation> accountOperations;
+
+    // Added to track which user created the account
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User createdBy;
+
+    // Added to track which user last updated the account
+    @ManyToOne
+    @JoinColumn(name = "updated_by")
+    private User updatedBy;
+
+    private Date updatedAt;
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = new Date();
+    }
 }
