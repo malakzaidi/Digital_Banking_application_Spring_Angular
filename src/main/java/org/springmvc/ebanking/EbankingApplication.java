@@ -4,17 +4,19 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springmvc.ebanking.entities.AccountOperation;
-import org.springmvc.ebanking.entities.CurrentAccount;
-import org.springmvc.ebanking.entities.Customer;
-import org.springmvc.ebanking.entities.SavingAccount;
+import org.springmvc.ebanking.entities.*;
 import org.springmvc.ebanking.enums.AccountStatus;
 import org.springmvc.ebanking.enums.OperationType;
+import org.springmvc.ebanking.exceptions.BalanceNotSufficientException;
+import org.springmvc.ebanking.exceptions.BankAccountNotFoundException;
+import org.springmvc.ebanking.exceptions.CustomerNotFoundException;
 import org.springmvc.ebanking.repositories.AccountOperationRepository;
 import org.springmvc.ebanking.repositories.BankAccountRepository;
 import org.springmvc.ebanking.repositories.CustomerRepository;
+import org.springmvc.ebanking.services.BankAccountsService;
 
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -25,8 +27,40 @@ public class EbankingApplication {
         SpringApplication.run(EbankingApplication.class, args);
     }
 
-
     @Bean
+    CommandLineRunner commandLineRunner (BankAccountsService bankAccountsService) {
+        return args -> {
+            Stream.of("Say","Siham","Latifa").forEach(name->{
+                Customer customer = new Customer();
+                customer.setName(name);
+                customer.setEmail(name+"@gmail.com");
+                bankAccountsService.saveCustomer(customer);
+            });
+            bankAccountsService.listCustomers().forEach(customer->{
+                try {
+                    bankAccountsService.saveCurrentBankAccount(Math.random()*90000,9000,customer.getId());
+                    bankAccountsService.saveSavingBankAccount(Math.random()*120000,5.5,customer.getId());
+                    List<BankAccount> bankAccounts = bankAccountsService.bankAccountList();
+                    for (BankAccount bankAccount:bankAccounts){
+                        for (int i = 0; i <10 ; i++) {
+                            bankAccountsService.credit(bankAccount.getId(), 10000+Math.random()*120000,"Credit");
+                            bankAccountsService.debit(bankAccount.getId(), 1000+Math.random()*9000,"Debit");
+                        }
+                    }
+
+                } catch (CustomerNotFoundException e) {
+                    e.printStackTrace();
+                } catch (BalanceNotSufficientException | BankAccountNotFoundException  e) {
+                    e.printStackTrace();
+                }
+            });
+
+        };
+
+        };
+    }
+
+    //@Bean
     CommandLineRunner start(CustomerRepository customerRepository,
                             BankAccountRepository bankAccountRepository,
                             AccountOperationRepository accountOperationRepository){
