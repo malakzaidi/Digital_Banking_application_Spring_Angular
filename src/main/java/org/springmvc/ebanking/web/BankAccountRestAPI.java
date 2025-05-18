@@ -119,4 +119,10 @@ public class BankAccountRestAPI {
         log.info("Deleting bank account: {}", accountId);
         bankAccountService.deleteBankAccount(accountId);
     }
+    @GetMapping("/accounts/search")
+    public List<BankAccountDTO> searchBankAccounts(@RequestParam(name = "keyword", defaultValue = "") String keyword) {
+        log.info("Searching bank accounts with keyword (account ID, customer ID, or customer name): {}", keyword);
+        return bankAccountService.searchBankAccounts(keyword);
+    }
+
 }

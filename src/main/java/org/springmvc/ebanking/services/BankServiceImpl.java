@@ -33,6 +33,26 @@ public class BankServiceImpl implements BankAccountsService {
     private BankAccountMapperImpl dtoMapper;
 
     @Override
+    public List<BankAccountDTO> searchBankAccounts(String keyword) {
+        log.info("Searching bank accounts with keyword (account ID, customer ID, or customer name): {}", keyword);
+        List<BankAccount> accounts;
+        if (keyword == null || keyword.trim().isEmpty()) {
+            accounts = bankAccountRepository.findAll();
+        } else {
+            accounts = bankAccountRepository.findByIdOrCustomerIdOrCustomerName(keyword);
+        }
+        List<BankAccountDTO> accountDTOs = accounts.stream().map(account -> {
+            if (account instanceof SavingAccount) {
+                return dtoMapper.fromSavingBankAccount((SavingAccount) account);
+            } else {
+                return dtoMapper.fromCurrentBankAccount((CurrentAccount) account);
+            }
+        }).collect(Collectors.toList());
+        log.info("Found {} bank accounts", accountDTOs.size());
+        return accountDTOs;
+    }
+
+    @Override
     public CurrentBankAccountDTO saveCurrentBankAccount(double initialBalance, double overDraft, Long customerId) throws CustomerNotFoundException {
         log.info("Saving current account for customer ID: {}, initialBalance: {}, overDraft: {}", customerId, initialBalance, overDraft);
         if (initialBalance < 0) {
@@ -51,7 +71,7 @@ public class BankServiceImpl implements BankAccountsService {
         CurrentAccount currentAccount = new CurrentAccount();
         currentAccount.setId(UUID.randomUUID().toString());
         currentAccount.setCreatedAt(new Date());
-        currentAccount.setBalance(initialBalance); // Allow zero balance
+        currentAccount.setBalance(initialBalance);
         currentAccount.setOverDraft(overDraft);
         currentAccount.setCustomer(customer);
         CurrentAccount savedBankAccount = bankAccountRepository.save(currentAccount);
@@ -78,7 +98,7 @@ public class BankServiceImpl implements BankAccountsService {
         SavingAccount savingAccount = new SavingAccount();
         savingAccount.setId(UUID.randomUUID().toString());
         savingAccount.setCreatedAt(new Date());
-        savingAccount.setBalance(initialBalance); // Allow zero balance
+        savingAccount.setBalance(initialBalance);
         savingAccount.setInterestRate(interestRate);
         savingAccount.setCustomer(customer);
         SavingAccount savedBankAccount = bankAccountRepository.save(savingAccount);
@@ -86,7 +106,6 @@ public class BankServiceImpl implements BankAccountsService {
         return dtoMapper.fromSavingBankAccount(savedBankAccount);
     }
 
-    // Other methods remain unchanged as per user request
     @Override
     public void deleteBankAccount(String accountId) throws BankAccountNotFoundException {
         log.info("Service: Deleting bank account: {}", accountId);
