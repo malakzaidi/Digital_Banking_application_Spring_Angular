@@ -30,6 +30,7 @@ public class CustomerRestController {
                     CustomerDTO dto = new CustomerDTO();
                     dto.setId(c.getId());
                     dto.setName(c.getName());
+                    dto.setEmail(c.getEmail());
                     return dto;
                 }).collect(Collectors.toList());
     }
@@ -42,6 +43,7 @@ public class CustomerRestController {
         CustomerDTO dto = new CustomerDTO();
         dto.setId(customer.getId());
         dto.setName(customer.getName());
+        dto.setEmail(customer.getEmail());
         return ResponseEntity.ok(dto);
     }
 

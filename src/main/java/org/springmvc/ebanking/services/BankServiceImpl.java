@@ -226,11 +226,31 @@ public class BankServiceImpl implements BankAccountsService {
     public List<BankAccountDTO> bankAccountList() {
         List<BankAccount> bankAccounts = bankAccountRepository.findAll();
         return bankAccounts.stream().map(bankAccount -> {
+            if (bankAccount instanceof CurrentAccount) {
+                CurrentBankAccountDTO dto = new CurrentBankAccountDTO();
+                dto.setId(bankAccount.getId());
+                dto.setBalance(bankAccount.getBalance());
+                dto.setCustomerId(bankAccount.getCustomer() != null ? bankAccount.getCustomer().getId() : null);
+                dto.setType("CurrentAccount");
+                dto.setCreatedAt(bankAccount.getCreatedAt().toString());
+                dto.setOverDraft(((CurrentAccount) bankAccount).getOverDraft());
+                return dto;
+            } else if (bankAccount instanceof SavingAccount) {
+                SavingBankAccountDTO dto = new SavingBankAccountDTO();
+                dto.setId(bankAccount.getId());
+                dto.setBalance(bankAccount.getBalance());
+                dto.setCustomerId(bankAccount.getCustomer() != null ? bankAccount.getCustomer().getId() : null);
+                dto.setType("SavingAccount");
+                dto.setCreatedAt(bankAccount.getCreatedAt().toString());
+                dto.setInterestRate(((SavingAccount) bankAccount).getInterestRate());
+                return dto;
+            }
+            // Fallback for unknown types (should not happen if all accounts are Current or Saving)
             BankAccountDTO dto = new BankAccountDTO();
             dto.setId(bankAccount.getId());
             dto.setBalance(bankAccount.getBalance());
             dto.setCustomerId(bankAccount.getCustomer() != null ? bankAccount.getCustomer().getId() : null);
-            dto.setType(bankAccount instanceof SavingAccount ? "SavingAccount" : "CurrentAccount");
+            dto.setType("Unknown");
             dto.setCreatedAt(bankAccount.getCreatedAt().toString());
             return dto;
         }).collect(Collectors.toList());

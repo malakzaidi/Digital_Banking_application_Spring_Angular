@@ -4,11 +4,13 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
+
+
 @Data
-@Getter
-@Setter
+
 public class BankAccountDTO {
     private String type;
+    private String id;
 
     public void setId(String id) {
 
@@ -21,5 +23,9 @@ public class BankAccountDTO {
     }
 
     public void setCreatedAt(String string) {
+    }
+
+    public String getId() {
+        return id ;
     }
 }
