@@ -2,11 +2,14 @@ package org.springmvc.ebanking.services;
 
 
 import org.springmvc.ebanking.dtos.*;
+import org.springmvc.ebanking.entities.Customer;
 import org.springmvc.ebanking.exceptions.BalanceNotSufficientException;
 import org.springmvc.ebanking.exceptions.BankAccountNotFoundException;
 import org.springmvc.ebanking.exceptions.CustomerNotFoundException;
 
+
 import java.util.List;
+import java.util.Optional;
 
 public interface BankAccountsService {
    CustomerDTO saveCustomer(CustomerDTO customerDTO);
@@ -26,4 +29,6 @@ public interface BankAccountsService {
    AccountHistoryDTO getAccountHistory(String accountId, int page, int size) throws BankAccountNotFoundException;
    List<CustomerDTO> searchCustomers(String keyword);
    List<BankAccountDTO> searchBankAccounts(String keyword);
+
+   Optional<Customer> findCustomerById(Long id);
 }

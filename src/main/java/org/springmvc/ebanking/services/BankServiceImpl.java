@@ -19,6 +19,7 @@ import org.springmvc.ebanking.repositories.CustomerRepository;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -222,18 +223,17 @@ public class BankServiceImpl implements BankAccountsService {
     }
 
     @Override
-    public List<BankAccountDTO> bankAccountList(){
+    public List<BankAccountDTO> bankAccountList() {
         List<BankAccount> bankAccounts = bankAccountRepository.findAll();
-        List<BankAccountDTO> bankAccountDTOS = bankAccounts.stream().map(bankAccount -> {
-            if (bankAccount instanceof SavingAccount) {
-                SavingAccount savingAccount = (SavingAccount) bankAccount;
-                return dtoMapper.fromSavingBankAccount(savingAccount);
-            } else {
-                CurrentAccount currentAccount = (CurrentAccount) bankAccount;
-                return dtoMapper.fromCurrentBankAccount(currentAccount);
-            }
+        return bankAccounts.stream().map(bankAccount -> {
+            BankAccountDTO dto = new BankAccountDTO();
+            dto.setId(bankAccount.getId());
+            dto.setBalance(bankAccount.getBalance());
+            dto.setCustomerId(bankAccount.getCustomer() != null ? bankAccount.getCustomer().getId() : null);
+            dto.setType(bankAccount instanceof SavingAccount ? "SavingAccount" : "CurrentAccount");
+            dto.setCreatedAt(bankAccount.getCreatedAt().toString());
+            return dto;
         }).collect(Collectors.toList());
-        return bankAccountDTOS;
     }
 
     @Override
@@ -278,5 +278,14 @@ public class BankServiceImpl implements BankAccountsService {
         List<Customer> customers=customerRepository.searchCustomer(keyword);
         List<CustomerDTO> customerDTOS = customers.stream().map(cust -> dtoMapper.fromCustomer(cust)).collect(Collectors.toList());
         return customerDTOS;
+    }
+    @Override
+    public Optional<Customer> findCustomerById(Long id) {
+        if (id == null) {
+            log.warn("Attempted to find customer with null ID");
+            return Optional.empty();
+        }
+        log.info("Fetching customer with ID: {}", id);
+        return customerRepository.findById(id);
     }
 }

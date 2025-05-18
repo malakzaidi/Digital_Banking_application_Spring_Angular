@@ -6,11 +6,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springmvc.ebanking.dtos.CustomerDTO;
+import org.springmvc.ebanking.entities.Customer;
 import org.springmvc.ebanking.exceptions.CustomerNotFoundException;
+import org.springmvc.ebanking.exceptions.ResourceNotFoundException;
 import org.springmvc.ebanking.services.BankAccountsService;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @AllArgsConstructor
@@ -20,9 +23,26 @@ public class CustomerRestController {
     private BankAccountsService bankAccountService;
 
     @GetMapping("/customers")
-    public List<CustomerDTO> customers() {
+    public List<CustomerDTO> listCustomers() {
         log.info("Fetching all customers");
-        return bankAccountService.listCustomers();
+        return bankAccountService.listCustomers().stream()
+                .map(c -> {
+                    CustomerDTO dto = new CustomerDTO();
+                    dto.setId(c.getId());
+                    dto.setName(c.getName());
+                    return dto;
+                }).collect(Collectors.toList());
+    }
+
+    @GetMapping("/customers/{id}")
+    public ResponseEntity<CustomerDTO> getCustomer(@PathVariable Long id) {
+        log.info("Fetching customer with ID: {}", id);
+        Customer customer = bankAccountService.findCustomerById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id: " + id));
+        CustomerDTO dto = new CustomerDTO();
+        dto.setId(customer.getId());
+        dto.setName(customer.getName());
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/customers/search")
@@ -31,11 +51,7 @@ public class CustomerRestController {
         return bankAccountService.searchCustomers("%" + keyword + "%");
     }
 
-    @GetMapping("/customers/{id}")
-    public CustomerDTO getCustomer(@PathVariable(name = "id") Long customerId) throws CustomerNotFoundException {
-        log.info("Fetching customer with ID: {}", customerId);
-        return bankAccountService.getCustomer(customerId);
-    }
+
 
     @PostMapping("/customers")
     public CustomerDTO saveCustomer(@RequestBody CustomerDTO customerDTO) {
