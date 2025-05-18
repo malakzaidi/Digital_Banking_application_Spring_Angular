@@ -13,7 +13,7 @@ import java.util.List;
 public class BankAccountRestAPI {
     private BankAccountsService bankAccountService;
 
-    public BankAccountRestAPI(BankAccountsService bankAccountSservice) {
+    public BankAccountRestAPI(BankAccountsService bankAccountService) {
         this.bankAccountService = bankAccountService;
     }
 
@@ -38,7 +38,7 @@ public class BankAccountRestAPI {
         return bankAccountService.getAccountHistory(accountId,page,size);
     }
     @PostMapping("/accounts/debit")
-    public DebitDTO debit(@RequestBody DebitDTO debitDTO) throws BankAccountNotFoundException, BalanceNotSufficientException, BalanceNotSufficientException {
+    public DebitDTO debit(@RequestBody DebitDTO debitDTO) throws BankAccountNotFoundException, BalanceNotSufficientException {
         this.bankAccountService.debit(debitDTO.getAccountId(),debitDTO.getAmount(),debitDTO.getDescription());
         return debitDTO;
     }
