@@ -1,30 +1,23 @@
 package org.springmvc.ebanking;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springmvc.ebanking.dtos.BankAccountDTO;
-import org.springmvc.ebanking.dtos.CurrentBankAccountDTO;
-import org.springmvc.ebanking.dtos.CustomerDTO;
-import org.springmvc.ebanking.dtos.SavingBankAccountDTO;
-import org.springmvc.ebanking.entities.Role;
-import org.springmvc.ebanking.entities.User;
-import org.springmvc.ebanking.exceptions.CustomerNotFoundException;
-import org.springmvc.ebanking.repositories.RoleRepository;
-import org.springmvc.ebanking.repositories.UserRepository;
-import org.springmvc.ebanking.services.BankAccountsService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springmvc.ebanking.entities.*;
+import org.springmvc.ebanking.enums.AccountStatus;
+import org.springmvc.ebanking.enums.OperationType;
+import org.springmvc.ebanking.repositories.*;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
-import java.util.stream.Stream;
 
-@Slf4j
 @SpringBootApplication
 public class EbankingApplication {
 
@@ -33,101 +26,180 @@ public class EbankingApplication {
     }
 
     @Bean
-    CommandLineRunner commandLineRunner(BankAccountsService bankAccountService,
-                                        UserRepository userRepository,
-                                        RoleRepository roleRepository,
-                                        PasswordEncoder passwordEncoder) {
+    public CommandLineRunner commandLineRunner(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            CustomerRepository customerRepository,
+            BankAccountRepository bankAccountRepository,
+            AccountOperationRepository accountOperationRepository,
+            PasswordEncoder passwordEncoder
+    ) {
         return args -> {
-            // Step 1: Temporarily set an authenticated user (admin) for createdBy
-            User adminUser = userRepository.findByUsername("admin")
-                    .orElseThrow(() -> new RuntimeException("Admin user not found"));
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    adminUser.getUsername(), null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN")));
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-            // Step 2: Create or ensure roles exist
-            Role userRole = roleRepository.findByName("USER")
-                    .orElseGet(() -> {
-                        Role role = new Role();
-                        role.setName("USER");
-                        role.setDescription("Standard user role");
-                        return roleRepository.save(role);
-                    });
+            // Create roles if they don't exist
+            if (roleRepository.findByName("USER").isEmpty()) {
+                Role userRole = new Role();
+                userRole.setName("USER");
+                userRole.setDescription("Standard user role");
+                roleRepository.save(userRole);
+            }
+            if (roleRepository.findByName("ADMIN").isEmpty()) {
+                Role adminRole = new Role();
+                adminRole.setName("ADMIN");
+                adminRole.setDescription("Administrator role");
+                roleRepository.save(adminRole);
+            }
 
             Role adminRole = roleRepository.findByName("ADMIN")
-                    .orElseGet(() -> {
-                        Role role = new Role();
-                        role.setName("ADMIN");
-                        role.setDescription("Administrator role");
-                        return roleRepository.save(role);
-                    });
+                    .orElseThrow(() -> new RuntimeException("ADMIN role not found"));
+            Role userRole = roleRepository.findByName("USER")
+                    .orElseThrow(() -> new RuntimeException("USER role not found"));
 
-            // Step 3: Create users with different roles and encoded passwords
-            // Admin user
-            if (!userRepository.existsByUsername("admin")) {
-                User admin = new User();
-                admin.setUsername("admin");
-                admin.setPassword(passwordEncoder.encode("admin123"));
-                admin.setEmail("admin@example.com");
-                admin.setFirstName("Admin");
-                admin.setLastName("User");
-                admin.setEnabled(true);
-                admin.setRoles(Collections.singletonList(adminRole));
-                userRepository.save(admin);
-                log.info("Created admin user: {}", admin.getUsername());
+            // Create three admin users
+            List<User> admins = Arrays.asList(
+                    createUser("admin1", "admin1@example.com", "Admin1", "User", passwordEncoder.encode("admin123")),
+                    createUser("admin2", "admin2@example.com", "Admin2", "User", passwordEncoder.encode("admin123")),
+                    createUser("admin3", "admin3@example.com", "Admin3", "User", passwordEncoder.encode("admin123"))
+            );
+
+            for (User admin : admins) {
+                if (userRepository.findByUsername(admin.getUsername()).isEmpty()) {
+                    admin.setRoles(Collections.singleton(adminRole));
+                    userRepository.save(admin);
+                    System.out.println("Admin user created: " + admin.getUsername());
+                }
             }
 
-            // Regular users
-            Stream.of("john", "jane").forEach(username -> {
-                if (!userRepository.existsByUsername(username)) {
-                    User user = new User();
-                    user.setUsername(username);
-                    user.setPassword(passwordEncoder.encode(username + "123")); // e.g., john123, jane123
-                    user.setEmail(username + "@example.com");
-                    user.setFirstName(username.substring(0, 1).toUpperCase() + username.substring(1));
-                    user.setLastName("Doe");
-                    user.setEnabled(true);
-                    user.setRoles(Collections.singletonList(userRole));
+            // Create regular users
+            List<User> regularUsers = Arrays.asList(
+                    createUser("john", "john@example.com", "John", "Doe", passwordEncoder.encode("john123")),
+                    createUser("jane", "jane@example.com", "Jane", "Doe", passwordEncoder.encode("jane123"))
+            );
+
+            for (User user : regularUsers) {
+                if (userRepository.findByUsername(user.getUsername()).isEmpty()) {
+                    user.setRoles(Collections.singleton(userRole));
                     userRepository.save(user);
-                    log.info("Created regular user: {}", user.getUsername());
-                }
-            });
-
-            // Step 4: Existing logic for customers and bank accounts
-            Stream.of("Meryem", "Imane", "Mohamed").forEach(name -> {
-                CustomerDTO customer = new CustomerDTO();
-                customer.setName(name);
-                customer.setEmail(name + "@gmail.com");
-                bankAccountService.saveCustomer(customer);
-            });
-
-            bankAccountService.listCustomers().forEach(customer -> {
-                try {
-                    bankAccountService.saveCurrentBankAccount(Math.random() * 90000, 9000, customer.getId());
-                    bankAccountService.saveSavingBankAccount(Math.random() * 120000, 5.5, customer.getId());
-                } catch (CustomerNotFoundException e) {
-                    e.printStackTrace();
-                }
-            });
-
-            List<BankAccountDTO> bankAccounts = bankAccountService.bankAccountList();
-            for (BankAccountDTO bankAccount : bankAccounts) {
-                for (int i = 0; i < 10; i++) {
-                    String accountId = bankAccount.getId();
-                    if (bankAccount instanceof CurrentBankAccountDTO) {
-                        accountId = ((CurrentBankAccountDTO) bankAccount).getId();
-                        bankAccountService.credit(accountId, 10000 + Math.random() * 120000, "Credit");
-                        bankAccountService.debit(accountId, 1000 + Math.random() * 9000, "Debit");
-                    } else if (bankAccount instanceof SavingBankAccountDTO) {
-                        accountId = ((SavingBankAccountDTO) bankAccount).getId();
-                        bankAccountService.credit(accountId, 10000 + Math.random() * 120000, "Credit");
-                        bankAccountService.debit(accountId, 1000 + Math.random() * 9000, "Debit");
-                    } else {
-                        log.warn("Unexpected account type: {}", bankAccount.getClass().getName());
-                    }
+                    System.out.println("Regular user created: " + user.getUsername());
                 }
             }
+
+            // Set security context to admin1 for initialization
+            User admin1 = userRepository.findByUsername("admin1")
+                    .orElseThrow(() -> new RuntimeException("Admin user admin1 not found"));
+            UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                    admin1.getUsername(),
+                    admin1.getPassword(),
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))
+            );
+            SecurityContextHolder.getContext().setAuthentication(
+                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    )
+            );
+
+            // Create customers
+            List<Customer> customers = Arrays.asList(
+                    createCustomer("Meryem", "meryem@gmail.com", admin1),
+                    createCustomer("Imane", "imane@gmail.com", admin1),
+                    createCustomer("Mohamed", "mohamed@gmail.com", admin1)
+            );
+
+            for (Customer customer : customers) {
+                if (customerRepository.findByEmail(customer.getEmail()).isEmpty()) {
+                    customerRepository.save(customer);
+                    System.out.println("Customer created: " + customer.getName());
+                }
+            }
+
+            // Create bank accounts and operations for each customer
+            for (Customer customer : customerRepository.findAll()) {
+                // Current Account
+                CurrentAccount currentAccount = new CurrentAccount();
+                currentAccount.setId(java.util.UUID.randomUUID().toString());
+                currentAccount.setBalance(50000);
+                currentAccount.setCreatedAt(new Date());
+                currentAccount.setStatus(AccountStatus.ACTIVATED);
+                currentAccount.setCustomer(customer);
+                currentAccount.setOverDraft(9000);
+                currentAccount.setCreatedBy(admin1);
+                currentAccount.setUpdatedBy(admin1);
+                bankAccountRepository.save(currentAccount);
+
+                // Saving Account
+                SavingAccount savingAccount = new SavingAccount();
+                savingAccount.setId(java.util.UUID.randomUUID().toString());
+                savingAccount.setBalance(75000);
+                savingAccount.setCreatedAt(new Date());
+                savingAccount.setStatus(AccountStatus.ACTIVATED);
+                savingAccount.setCustomer(customer);
+                savingAccount.setInterestRate(5.5);
+                savingAccount.setCreatedBy(admin1);
+                savingAccount.setUpdatedBy(admin1);
+                bankAccountRepository.save(savingAccount);
+
+                // Account Operations for Current Account
+                AccountOperation creditOp1 = new AccountOperation();
+                creditOp1.setOperationDate(new Date());
+                creditOp1.setAmount(25000);
+                creditOp1.setType(OperationType.CREDIT);
+                creditOp1.setBankAccount(currentAccount);
+                creditOp1.setDescription("Credit");
+                creditOp1.setPerformedBy(admin1);
+                accountOperationRepository.save(creditOp1);
+
+                AccountOperation debitOp1 = new AccountOperation();
+                debitOp1.setOperationDate(new Date());
+                debitOp1.setAmount(3000);
+                debitOp1.setType(OperationType.DEBIT);
+                debitOp1.setBankAccount(currentAccount);
+                debitOp1.setDescription("Debit");
+                debitOp1.setPerformedBy(admin1);
+                accountOperationRepository.save(debitOp1);
+
+                // Account Operations for Saving Account
+                AccountOperation creditOp2 = new AccountOperation();
+                creditOp2.setOperationDate(new Date());
+                creditOp2.setAmount(40000);
+                creditOp2.setType(OperationType.CREDIT);
+                creditOp2.setBankAccount(savingAccount);
+                creditOp2.setDescription("Credit");
+                creditOp2.setPerformedBy(admin1);
+                accountOperationRepository.save(creditOp2);
+
+                AccountOperation debitOp2 = new AccountOperation();
+                debitOp2.setOperationDate(new Date());
+                debitOp2.setAmount(5000);
+                debitOp2.setType(OperationType.DEBIT);
+                debitOp2.setBankAccount(savingAccount);
+                debitOp2.setDescription("Debit");
+                debitOp2.setPerformedBy(admin1);
+                accountOperationRepository.save(debitOp2);
+            }
+
+            // Clear security context after initialization
             SecurityContextHolder.clearContext();
         };
+    }
+
+    private User createUser(String username, String email, String firstName, String lastName, String encodedPassword) {
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        user.setPassword(encodedPassword);
+        user.setEnabled(true);
+        return user;
+    }
+
+    private Customer createCustomer(String name, String email, User createdBy) {
+        Customer customer = new Customer();
+        customer.setName(name);
+        customer.setEmail(email);
+        customer.setCreatedBy(createdBy);
+        customer.setUpdatedBy(createdBy);
+        customer.setCreatedAt(new Date());
+        customer.setUpdatedAt(new Date());
+        return customer;
     }
 }
