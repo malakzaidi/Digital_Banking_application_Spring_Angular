@@ -3,14 +3,8 @@ package org.springmvc.ebanking.mappers;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
-import org.springmvc.ebanking.dtos.AccountOperationDTO;
-import org.springmvc.ebanking.dtos.CurrentBankAccountDTO;
-import org.springmvc.ebanking.dtos.CustomerDTO;
-import org.springmvc.ebanking.dtos.SavingBankAccountDTO;
-import org.springmvc.ebanking.entities.AccountOperation;
-import org.springmvc.ebanking.entities.CurrentAccount;
-import org.springmvc.ebanking.entities.Customer;
-import org.springmvc.ebanking.entities.SavingAccount;
+import org.springmvc.ebanking.dtos.*;
+import org.springmvc.ebanking.entities.*;
 
 @Service
     public class BankAccountMapperImpl {
@@ -61,5 +55,37 @@ import org.springmvc.ebanking.entities.SavingAccount;
             return accountOperationDTO;
         }
 
+    public BankAccountDTO fromBankAccount(BankAccount bankAccount) {
+        if (bankAccount == null) {
+            return null;
+        }
+
+        if (bankAccount instanceof CurrentAccount) {
+            return fromCurrentBankAccount((CurrentAccount) bankAccount);
+        } else if (bankAccount instanceof SavingAccount) {
+            return fromSavingBankAccount((SavingAccount) bankAccount);
+        }
+
+        // Fallback for generic BankAccount mapping
+        BankAccountDTO dto = new BankAccountDTO();
+        dto.setId(bankAccount.getId());
+        dto.setBalance(bankAccount.getBalance());
+        dto.setCreatedAt(bankAccount.getCreatedAt());
+        dto.setStatus(bankAccount.getStatus());
+        dto.setType("Unknown");
+        if (bankAccount.getCustomer() != null) {
+            CustomerDTO customerDTO = fromCustomer(bankAccount.getCustomer());
+            dto.setCustomerDTO(customerDTO);
+        }
+        if (bankAccount.getCreatedBy() != null) {
+            dto.setCreatedBy(bankAccount.getCreatedBy().getId());
+        }
+        if (bankAccount.getUpdatedBy() != null) {
+            dto.setUpdatedBy(bankAccount.getUpdatedBy().getId());
+        }
+        dto.setUpdatedAt(bankAccount.getUpdatedAt());
+
+        return dto;
     }
+}
 

@@ -3,8 +3,10 @@ package org.springmvc.ebanking.dtos.auth;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.Getter;
 
 @Data
+@Getter
 public class PasswordChangeDto {
     @NotBlank(message = "Current password is required")
     private String currentPassword;

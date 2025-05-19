@@ -1,9 +1,7 @@
 package org.springmvc.ebanking.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,6 +12,8 @@ import java.util.Date;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,7 +22,7 @@ public class User {
     @Column(unique = true)
     private String username;
 
-    private String password;
+    private String password; // Will be encoded by service layer
 
     @Column(unique = true)
     private String email;
@@ -41,7 +41,10 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
-    private Collection <Role> roles = new ArrayList<>();
+    private Collection<Role> roles = new ArrayList<>();
+
+    // Optional: Add createdBy if an admin creates users
+    // private Long createdBy;
 
     @PrePersist
     protected void onCreate() {

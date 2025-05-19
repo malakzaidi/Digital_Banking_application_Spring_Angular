@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springmvc.ebanking.entities.Role;
 import org.springmvc.ebanking.entities.User;
 import org.springmvc.ebanking.repositories.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.List;
@@ -19,21 +21,30 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(CustomUserDetailsService.class);
+
     private final UserRepository userRepository;
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
+        logger.info("Attempting to load user by username or email: {}", usernameOrEmail);
         User user = userRepository.findByUsername(usernameOrEmail)
-                .orElseGet(() -> userRepository.findByEmail(usernameOrEmail)
-                        .orElseThrow(() -> new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail)));
+                .orElseGet(() -> {
+                    logger.info("Username not found, trying email: {}", usernameOrEmail);
+                    return userRepository.findByEmail(usernameOrEmail)
+                            .orElseThrow(() -> {
+                                logger.warn("User not found with username or email: {}", usernameOrEmail);
+                                return new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail);
+                            });
+                });
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
                 user.isEnabled(),
-                true,
-                true,
-                true,
+                true, // accountNonExpired
+                true, // credentialsNonExpired
+                true, // accountNonLocked
                 getAuthorities(user.getRoles())
         );
     }
