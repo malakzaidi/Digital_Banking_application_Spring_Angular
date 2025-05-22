@@ -3,7 +3,9 @@ package org.springmvc.ebanking.services;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -40,23 +42,72 @@ public class BankServiceImpl implements BankAccountsService {
     private BankAccountMapperImpl dtoMapper;
 
     @Override
-    public List<BankAccountDTO> searchBankAccounts(String keyword) {
-        log.info("Searching bank accounts with keyword (account ID, customer ID, or customer name): {}", keyword);
-        List<BankAccount> accounts;
+    public Page<BankAccountDTO> bankAccountList(Pageable pageable) {
+        log.info("Fetching bank accounts with pagination, page: {}, size: {}", pageable.getPageNumber(), pageable.getPageSize());
+        Page<BankAccount> accountPage = bankAccountRepository.findAll(pageable);
+        List<BankAccountDTO> accountDTOs = accountPage.getContent().stream()
+                .map(bankAccount -> {
+                    if (bankAccount instanceof CurrentAccount) {
+                        return dtoMapper.fromCurrentBankAccount((CurrentAccount) bankAccount);
+                    } else if (bankAccount instanceof SavingAccount) {
+                        return dtoMapper.fromSavingBankAccount((SavingAccount) bankAccount);
+                    } else {
+                        log.warn("Unexpected account type: {}", bankAccount.getClass().getName());
+                        return dtoMapper.fromBankAccount(bankAccount);
+                    }
+                })
+                .collect(Collectors.toList());
+        return new PageImpl<>(accountDTOs, pageable, accountPage.getTotalElements());
+    }
+
+    @Override
+    public Page<BankAccountDTO> searchBankAccounts(String keyword, Pageable pageable) {
+        log.info("Searching bank accounts with keyword: {}, page: {}, size: {}", keyword, pageable.getPageNumber(), pageable.getPageSize());
+        Page<BankAccount> accountPage;
         if (keyword == null || keyword.trim().isEmpty()) {
-            accounts = bankAccountRepository.findAll();
+            accountPage = bankAccountRepository.findAll(pageable);
         } else {
-            accounts = bankAccountRepository.findByIdOrCustomerIdOrCustomerName(keyword);
+            accountPage = bankAccountRepository.findByIdContainingOrCustomerNameContaining(keyword, pageable);
         }
-        List<BankAccountDTO> accountDTOs = accounts.stream().map(account -> {
-            if (account instanceof SavingAccount) {
-                return dtoMapper.fromSavingBankAccount((SavingAccount) account);
-            } else {
-                return dtoMapper.fromCurrentBankAccount((CurrentAccount) account);
-            }
-        }).collect(Collectors.toList());
+        List<BankAccountDTO> accountDTOs = accountPage.getContent().stream()
+                .map(account -> {
+                    if (account instanceof SavingAccount) {
+                        return dtoMapper.fromSavingBankAccount((SavingAccount) account);
+                    } else {
+                        return dtoMapper.fromCurrentBankAccount((CurrentAccount) account);
+                    }
+                })
+                .collect(Collectors.toList());
         log.info("Found {} bank accounts", accountDTOs.size());
-        return accountDTOs;
+        return new PageImpl<>(accountDTOs, pageable, accountPage.getTotalElements());
+    }
+
+    @Override
+    public List<BankAccountDTO> getUserAccounts() throws CustomerNotFoundException {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof UserDetails)) {
+            log.warn("No authenticated user found");
+            throw new IllegalStateException("User not authenticated");
+        }
+        String username = ((UserDetails) auth.getPrincipal()).getUsername();
+        log.info("Fetching accounts for user: {}", username);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+        Customer customer = customerRepository.findByEmail(user.getEmail())
+                .orElseThrow(() -> {
+                    log.error("Customer not found for user: {}", username);
+                    return new CustomerNotFoundException("Customer not found for user: " + username);
+                });
+        List<BankAccount> accounts = bankAccountRepository.findByCustomerId(customer.getId());
+        return accounts.stream()
+                .map(account -> {
+                    if (account instanceof SavingAccount) {
+                        return dtoMapper.fromSavingBankAccount((SavingAccount) account);
+                    } else {
+                        return dtoMapper.fromCurrentBankAccount((CurrentAccount) account);
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -82,7 +133,6 @@ public class BankServiceImpl implements BankAccountsService {
         currentAccount.setOverDraft(overDraft);
         currentAccount.setCustomer(customer);
 
-        // Set createdBy and updatedBy
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof UserDetails) {
             String username = ((UserDetails) auth.getPrincipal()).getUsername();
@@ -121,7 +171,6 @@ public class BankServiceImpl implements BankAccountsService {
         savingAccount.setInterestRate(interestRate);
         savingAccount.setCustomer(customer);
 
-        // Set createdBy and updatedBy
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof UserDetails) {
             String username = ((UserDetails) auth.getPrincipal()).getUsername();
@@ -195,7 +244,6 @@ public class BankServiceImpl implements BankAccountsService {
         log.info("Saving new Customer: {}", customerDTO.getName());
         Customer customer = dtoMapper.fromCustomerDTO(customerDTO);
 
-        // Set createdBy and updatedBy
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof UserDetails) {
             String username = ((UserDetails) auth.getPrincipal()).getUsername();
@@ -210,14 +258,6 @@ public class BankServiceImpl implements BankAccountsService {
         return dtoMapper.fromCustomer(savedCustomer);
     }
 
-    @Override
-    public List<CustomerDTO> listCustomers() {
-        List<Customer> customers = customerRepository.findAll();
-        List<CustomerDTO> customerDTOS = customers.stream()
-                .map(customer -> dtoMapper.fromCustomer(customer))
-                .collect(Collectors.toList());
-        return customerDTOS;
-    }
 
     @Override
     public BankAccountDTO getBankAccount(String accountId) throws BankAccountNotFoundException {
@@ -256,7 +296,6 @@ public class BankServiceImpl implements BankAccountsService {
         accountOperation.setOperationDate(new Date());
         accountOperation.setBankAccount(bankAccount);
 
-        // Set performedBy and update updatedBy on bank account
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof UserDetails) {
             String username = ((UserDetails) auth.getPrincipal()).getUsername();
@@ -292,7 +331,6 @@ public class BankServiceImpl implements BankAccountsService {
         accountOperation.setOperationDate(new Date());
         accountOperation.setBankAccount(bankAccount);
 
-        // Set performedBy and update updatedBy on bank account
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof UserDetails) {
             String username = ((UserDetails) auth.getPrincipal()).getUsername();
@@ -318,21 +356,6 @@ public class BankServiceImpl implements BankAccountsService {
     }
 
     @Override
-    public List<BankAccountDTO> bankAccountList() {
-        List<BankAccount> bankAccounts = bankAccountRepository.findAll();
-        return bankAccounts.stream().map(bankAccount -> {
-            if (bankAccount instanceof CurrentAccount) {
-                return dtoMapper.fromCurrentBankAccount((CurrentAccount) bankAccount);
-            } else if (bankAccount instanceof SavingAccount) {
-                return dtoMapper.fromSavingBankAccount((SavingAccount) bankAccount);
-            } else {
-                log.warn("Unexpected account type: {}", bankAccount.getClass().getName());
-                return dtoMapper.fromBankAccount(bankAccount);
-            }
-        }).collect(Collectors.toList());
-    }
-
-    @Override
     public CustomerDTO getCustomer(Long customerId) throws CustomerNotFoundException {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> {
@@ -347,7 +370,6 @@ public class BankServiceImpl implements BankAccountsService {
         log.info("Updating customer: {}", customerDTO.getName());
         Customer customer = dtoMapper.fromCustomerDTO(customerDTO);
 
-        // Set updatedBy
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof UserDetails) {
             String username = ((UserDetails) auth.getPrincipal()).getUsername();
@@ -391,12 +413,19 @@ public class BankServiceImpl implements BankAccountsService {
     }
 
     @Override
+    public List<CustomerDTO> listCustomers() {
+        List<Customer> customers = customerRepository.findAll();
+        return customers.stream()
+                .map(customer -> dtoMapper.fromCustomer(customer))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<CustomerDTO> searchCustomers(String keyword) {
         List<Customer> customers = customerRepository.searchCustomer(keyword);
-        List<CustomerDTO> customerDTOS = customers.stream()
+        return customers.stream()
                 .map(cust -> dtoMapper.fromCustomer(cust))
                 .collect(Collectors.toList());
-        return customerDTOS;
     }
 
     @Override

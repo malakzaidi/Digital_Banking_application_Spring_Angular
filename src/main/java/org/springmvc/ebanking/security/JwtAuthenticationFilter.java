@@ -33,7 +33,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         log.info("Processing request for path: {}", path);
 
         // Skip filter for public endpoints
-        if (path.startsWith("/api/auth/login") || path.startsWith("/api/auth/register")) {
+        if (path.startsWith("/api/auth/login") || path.startsWith("/api/auth/register") ||
+                path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) {
             log.info("Skipping JWT filter for public endpoint: {}", path);
             filterChain.doFilter(request, response);
             return;
@@ -52,10 +53,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 log.info("Authentication set for user: {}", username);
             } else {
-                log.warn("Invalid JWT token for path: {}", path);
+                log.warn("Invalid JWT token for path: {}, reason: validation failed", path);
             }
         } else {
-            log.info("No JWT token found for path: {}", path);
+            log.warn("No JWT token found for path: {}", path);
         }
         filterChain.doFilter(request, response);
     }
@@ -65,6 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
-        return null;
+        log.debug("No Bearer token in Authorization header, checking cookies...");
+        return null; // Add cookie-based token extraction if applicable
     }
 }

@@ -28,41 +28,36 @@ public class SecurityConfig {
 
     private final JwtAuthEntryPoint authEntryPoint;
     private final CustomUserDetailsService userDetailsService;
-    private final JwtTokenProvider jwtTokenProvider; // Add this dependency
+    private final JwtTokenProvider jwtTokenProvider; // Ensure this is injected
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .exceptionHandling(exception ->
-                        exception.authenticationEntryPoint(authEntryPoint)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(authEntryPoint)
                 )
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .authorizeHttpRequests(auth ->
-                        auth
-                                .requestMatchers("/api/auth/**").permitAll() // Public: login, register
-                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // Public: Swagger
-                                .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints
-                                .requestMatchers("/api/accounts/**", "/api/customers/**").hasAnyRole("USER", "ADMIN") // User and admin access
-                                .anyRequest().authenticated() // All other endpoints require authentication
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll() // Public: login, register
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // Public: Swagger
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints
+                        .requestMatchers("/api/accounts/**", "/api/customers/**").hasAnyRole("USER", "ADMIN") // User and admin access
+                        .anyRequest().authenticated() // All other endpoints require authentication
                 );
 
+        // Add authentication provider
         http.authenticationProvider(authenticationProvider());
-        // Pass dependencies to JwtAuthenticationFilter
+
+        // Add JWT filter with dependencies
         http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-
-    // Remove this method since JwtAuthenticationFilter is already a @Component
-    // @Bean
-    // public JwtAuthenticationFilter jwtAuthenticationFilter() {
-    //     return new JwtAuthenticationFilter();
-    // }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
@@ -89,11 +84,10 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(true); // Allow cookies if needed
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 }
