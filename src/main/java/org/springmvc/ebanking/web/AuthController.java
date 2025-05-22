@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springmvc.ebanking.dtos.auth.PasswordChangeDto;
 import org.springmvc.ebanking.dtos.auth.RegisterDto;
 import org.springmvc.ebanking.dtos.auth.LoginDto;
 import org.springmvc.ebanking.entities.Role;
@@ -88,6 +89,43 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse("Invalid credentials"));
         }
     }
+    @PutMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody PasswordChangeDto passwordChangeDto,
+                                            @RequestHeader("Authorization") String authorizationHeader) {
+        log.info("Change password request received for token: {}", authorizationHeader);
+
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            log.warn("Missing or invalid Authorization header");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse("Unauthorized"));
+        }
+
+        String token = authorizationHeader.substring(7); // Remove "Bearer " prefix
+
+        try {
+            String username = jwtTokenProvider.getUsernameFromToken(token);
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Validate current password
+            if (!passwordEncoder.matches(passwordChangeDto.getCurrentPassword(), user.getPassword())) {
+                log.warn("Current password is incorrect for user: {}", username);
+                return ResponseEntity.badRequest().body(new ErrorResponse("Current password is incorrect"));
+            }
+
+            // Update with new password
+            user.setPassword(passwordEncoder.encode(passwordChangeDto.getNewPassword()));
+            userRepository.save(user);
+
+            log.info("Password changed successfully for user: {}", username);
+            return ResponseEntity.ok(new SuccessResponse("Password changed successfully"));
+
+        } catch (Exception e) {
+            log.error("Error changing password", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Failed to change password"));
+        }
+    }
+
 }
 
 class SuccessResponse {

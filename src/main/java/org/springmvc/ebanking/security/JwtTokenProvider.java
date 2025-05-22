@@ -115,4 +115,12 @@ public class JwtTokenProvider {
     public String getUsernameFromJWT(String jwt) {
         return getUsername(jwt);
     }
+
+    public String getUsernameFromToken(String token) {
+        return Jwts.parser()
+                .setSigningKey(jwtSecret)
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
+    }
 }
