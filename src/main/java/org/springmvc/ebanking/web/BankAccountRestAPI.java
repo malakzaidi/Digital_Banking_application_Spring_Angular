@@ -159,7 +159,7 @@ public class BankAccountRestAPI {
 
     @GetMapping("/accounts/user")
     @PreAuthorize("hasAnyRole('ROLE_USER', 'ROLE_ADMIN')")
-    public List<BankAccountDTO> getUserAccounts() {
+    public List<BankAccountDTO> getUserAccounts() throws CustomerNotFoundException {
         log.info("Fetching accounts for authenticated user");
         return bankAccountService.getUserAccounts();
     }
