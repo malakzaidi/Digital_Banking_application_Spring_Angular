@@ -14,9 +14,10 @@ import java.util.List;
 
 @RestController
 @Slf4j
-@CrossOrigin("*")
+@RequestMapping("/api")
 public class BankAccountRestAPI {
-    private BankAccountsService bankAccountService;
+
+    private final BankAccountsService bankAccountService;
 
     public BankAccountRestAPI(BankAccountsService bankAccountService) {
         this.bankAccountService = bankAccountService;
@@ -34,7 +35,6 @@ public class BankAccountRestAPI {
         return bankAccountService.bankAccountList();
     }
 
-    // NEW ENDPOINT: Create Current Account
     @PostMapping("/accounts/current")
     public ResponseEntity<?> saveCurrentAccount(@RequestBody CurrentAccountRequestDTO requestDTO) {
         log.info("Creating current account with: {}", requestDTO);
@@ -55,7 +55,6 @@ public class BankAccountRestAPI {
         }
     }
 
-    // NEW ENDPOINT: Create Saving Account
     @PostMapping("/accounts/saving")
     public ResponseEntity<?> saveSavingAccount(@RequestBody SavingAccountRequestDTO requestDTO) {
         log.info("Creating saving account with: {}", requestDTO);
@@ -119,10 +118,10 @@ public class BankAccountRestAPI {
         log.info("Deleting bank account: {}", accountId);
         bankAccountService.deleteBankAccount(accountId);
     }
+
     @GetMapping("/accounts/search")
     public List<BankAccountDTO> searchBankAccounts(@RequestParam(name = "keyword", defaultValue = "") String keyword) {
         log.info("Searching bank accounts with keyword (account ID, customer ID, or customer name): {}", keyword);
         return bankAccountService.searchBankAccounts(keyword);
     }
-
 }

@@ -51,24 +51,33 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
-    // Get username from JWT token
-    public String getUsername(String token) {
-        Claims claims = Jwts.parserBuilder()
+    // Helper method to parse JWT and get claims
+    private Claims getClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(key())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        return claims.getSubject();
+    }
+
+    // Get username from JWT token
+    public String getUsername(String token) {
+        try {
+            return getClaims(token).getSubject();
+        } catch (JwtException e) {
+            log.error("Failed to extract username from token: {}", e.getMessage());
+            throw e;
+        }
     }
 
     // Get roles from JWT token
     public List<String> getRoles(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(key())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.get("roles", List.class);
+        try {
+            return getClaims(token).get("roles", List.class);
+        } catch (JwtException e) {
+            log.error("Failed to extract roles from token: {}", e.getMessage());
+            throw e;
+        }
     }
 
     // Validate JWT token
@@ -100,5 +109,10 @@ public class JwtTokenProvider {
             return bearerToken.substring(7);
         }
         return null;
+    }
+
+    // Get username from JWT token (same as getUsername but with explicit naming)
+    public String getUsernameFromJWT(String jwt) {
+        return getUsername(jwt);
     }
 }

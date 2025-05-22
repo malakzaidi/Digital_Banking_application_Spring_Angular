@@ -28,6 +28,7 @@ public class SecurityConfig {
 
     private final JwtAuthEntryPoint authEntryPoint;
     private final CustomUserDetailsService userDetailsService;
+    private final JwtTokenProvider jwtTokenProvider; // Add this dependency
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -42,23 +43,26 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth ->
                         auth
-                                .requestMatchers("/auth/**").permitAll() // Public: login, register, etc.
+                                .requestMatchers("/api/auth/**").permitAll() // Public: login, register
                                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // Public: Swagger
-                                .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints (e.g., dashboard)
+                                .requestMatchers("/api/admin/**").hasRole("ADMIN") // Admin-only endpoints
                                 .requestMatchers("/api/accounts/**", "/api/customers/**").hasAnyRole("USER", "ADMIN") // User and admin access
                                 .anyRequest().authenticated() // All other endpoints require authentication
                 );
 
         http.authenticationProvider(authenticationProvider());
-        http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        // Pass dependencies to JwtAuthenticationFilter
+        http.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService),
+                UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter();
-    }
+    // Remove this method since JwtAuthenticationFilter is already a @Component
+    // @Bean
+    // public JwtAuthenticationFilter jwtAuthenticationFilter() {
+    //     return new JwtAuthenticationFilter();
+    // }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
@@ -81,7 +85,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:4200")); // Adjust for your frontend URL
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:4200")); // Matches Angular frontend
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept"));
         configuration.setExposedHeaders(Arrays.asList("Authorization"));

@@ -56,9 +56,9 @@ public class EbankingApplication {
 
             // Create three admin users
             List<User> admins = Arrays.asList(
-                    createUser("admin1", "admin1@example.com", "Admin1", "User", passwordEncoder.encode("admin123")),
-                    createUser("admin2", "admin2@example.com", "Admin2", "User", passwordEncoder.encode("admin123")),
-                    createUser("admin3", "admin3@example.com", "Admin3", "User", passwordEncoder.encode("admin123"))
+                    createUser("admin1", "admin1@example.com", "Admin1", "User", passwordEncoder.encode("1234")),
+                    createUser("admin2", "admin2@example.com", "Admin2", "User", passwordEncoder.encode("1234")),
+                    createUser("admin3", "admin3@example.com", "Admin3", "User", passwordEncoder.encode("1234"))
             );
 
             for (User admin : admins) {

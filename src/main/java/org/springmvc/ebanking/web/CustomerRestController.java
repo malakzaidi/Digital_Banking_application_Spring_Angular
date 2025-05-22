@@ -16,13 +16,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
+@RequestMapping("/api/customers")
 @AllArgsConstructor
 @Slf4j
-@CrossOrigin("*")
 public class CustomerRestController {
     private BankAccountsService bankAccountService;
 
-    @GetMapping("/customers")
+    @GetMapping
     public List<CustomerDTO> listCustomers() {
         log.info("Fetching all customers");
         return bankAccountService.listCustomers().stream()
@@ -35,7 +35,7 @@ public class CustomerRestController {
                 }).collect(Collectors.toList());
     }
 
-    @GetMapping("/customers/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<CustomerDTO> getCustomer(@PathVariable Long id) {
         log.info("Fetching customer with ID: {}", id);
         Customer customer = bankAccountService.findCustomerById(id)
@@ -47,21 +47,19 @@ public class CustomerRestController {
         return ResponseEntity.ok(dto);
     }
 
-    @GetMapping("/customers/search")
+    @GetMapping("/search")
     public List<CustomerDTO> searchCustomers(@RequestParam(name = "keyword", defaultValue = "") String keyword) {
         log.info("Searching customers with keyword: {}", keyword);
         return bankAccountService.searchCustomers("%" + keyword + "%");
     }
 
-
-
-    @PostMapping("/customers")
+    @PostMapping
     public CustomerDTO saveCustomer(@RequestBody CustomerDTO customerDTO) {
         log.info("Saving customer: {}", customerDTO);
         return bankAccountService.saveCustomer(customerDTO);
     }
 
-    @PutMapping("/customers/{customerId}")
+    @PutMapping("/{customerId}")
     public ResponseEntity<CustomerDTO> updateCustomer(@PathVariable Long customerId, @RequestBody CustomerDTO customerDTO) {
         log.info("Updating customer ID: {} with data: {}", customerId, customerDTO);
         if (customerDTO.getName() == null || customerDTO.getEmail() == null) {
@@ -78,7 +76,7 @@ public class CustomerRestController {
         }
     }
 
-    @DeleteMapping("/customers/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCustomer(@PathVariable Long id) {
         log.info("Deleting customer with ID: {}", id);
         try {
