@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class JwtTokenProvider {
 
-    @Value("${app.jwt-secret}")
+    @Value("${APP_JWT_SECRET}")
     private String jwtSecret;
 
-    @Value("${app.jwt-expiration}")
+    @Value("${APP_JWT_EXPIRATION}")
     private long jwtExpirationDate;
 
     // Generate JWT token
@@ -42,7 +42,7 @@ public class JwtTokenProvider {
                 .claim("roles", roles) // Add roles as a claim
                 .setIssuedAt(new Date())
                 .setExpiration(expireDate)
-                .signWith(key())
+                .signWith(key(), SignatureAlgorithm.HS256)
                 .compact();
         return token;
     }
@@ -110,17 +110,21 @@ public class JwtTokenProvider {
         }
         return null;
     }
-
-    // Get username from JWT token (same as getUsername but with explicit naming)
     public String getUsernameFromJWT(String jwt) {
         return getUsername(jwt);
     }
 
     public String getUsernameFromToken(String token) {
-        return Jwts.parser()
-                .setSigningKey(jwtSecret)
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getSubject();
+        } catch (JwtException e) {
+            log.error("Failed to extract username from token: {}", e.getMessage());
+            throw e;
+        }
     }
 }

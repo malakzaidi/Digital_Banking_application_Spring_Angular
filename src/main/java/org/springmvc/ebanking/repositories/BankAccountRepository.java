@@ -15,4 +15,8 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, String
 
     @Query("SELECT ba FROM BankAccount ba JOIN ba.customer c WHERE ba.id LIKE %:keyword% OR cast(c.id as string) LIKE %:keyword% OR c.name LIKE %:keyword%")
     Page<BankAccount> findByIdContainingOrCustomerNameContaining(@Param("keyword") String keyword, Pageable pageable);
+    @Query("SELECT SUM(b.balance) FROM BankAccount b")
+    Double sumBalances();
+
+    Page<BankAccount> findByCustomerNameContains(String keyword, Pageable pageable);
 }

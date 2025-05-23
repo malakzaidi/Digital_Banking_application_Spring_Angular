@@ -8,14 +8,26 @@ import org.springmvc.ebanking.entities.*;
 @Service
 public class BankAccountMapperImpl {
     public CustomerDTO fromCustomer(Customer customer) {
+        if (customer == null) {
+            return null;
+        }
         CustomerDTO customerDTO = new CustomerDTO();
-        BeanUtils.copyProperties(customer, customerDTO);
+        customerDTO.setId(customer.getId());
+        customerDTO.setName(customer.getName());
+        customerDTO.setEmail(customer.getEmail());
+        customerDTO.setCreatedBy(customer.getCreatedBy() != null ? customer.getCreatedBy().getUsername() : "Unknown");
+        customerDTO.setUpdatedBy(customer.getUpdatedBy() != null ? customer.getUpdatedBy().getUsername() : "Unknown");
         return customerDTO;
     }
 
     public Customer fromCustomerDTO(CustomerDTO customerDTO) {
+        if (customerDTO == null) {
+            return null;
+        }
         Customer customer = new Customer();
-        BeanUtils.copyProperties(customerDTO, customer);
+        customer.setId(customerDTO.getId());
+        customer.setName(customerDTO.getName());
+        customer.setEmail(customerDTO.getEmail());
         return customer;
     }
 
@@ -67,11 +79,6 @@ public class BankAccountMapperImpl {
         return currentAccount;
     }
 
-    public AccountOperationDTO fromAccountOperation(AccountOperation accountOperation) {
-        AccountOperationDTO accountOperationDTO = new AccountOperationDTO();
-        BeanUtils.copyProperties(accountOperation, accountOperationDTO);
-        return accountOperationDTO;
-    }
 
     public BankAccountDTO fromBankAccount(BankAccount bankAccount) {
         if (bankAccount == null) {
@@ -89,7 +96,6 @@ public class BankAccountMapperImpl {
         dto.setId(bankAccount.getId());
         dto.setBalance(bankAccount.getBalance());
         dto.setCreatedAt(bankAccount.getCreatedAt());
-        dto.setStatus(bankAccount.getStatus());
         dto.setType("Unknown");
         if (bankAccount.getCustomer() != null) {
             Customer customer = bankAccount.getCustomer();
@@ -106,4 +112,19 @@ public class BankAccountMapperImpl {
 
         return dto;
     }
+    public AccountOperationDTO fromAccountOperation(AccountOperation accountOperation) {
+        if (accountOperation == null) {
+            return null;
+        }
+        AccountOperationDTO dto = new AccountOperationDTO();
+        dto.setId(accountOperation.getId());
+        dto.setOperationDate(accountOperation.getOperationDate());
+        dto.setAmount(accountOperation.getAmount());
+        dto.setDescription(accountOperation.getDescription());
+        dto.setType(accountOperation.getType());
+        dto.setAccountId(accountOperation.getBankAccount() != null ? accountOperation.getBankAccount().getId() : null);
+        dto.setPerformedBy(accountOperation.getPerformedBy() != null ? accountOperation.getPerformedBy().getUsername() : "Unknown");
+        return dto;
+    }
+
 }

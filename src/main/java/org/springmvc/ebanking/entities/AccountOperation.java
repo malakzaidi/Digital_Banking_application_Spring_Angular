@@ -1,14 +1,14 @@
 package org.springmvc.ebanking.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springmvc.ebanking.enums.OperationType;
 
 import java.util.Date;
 @Entity
 @Data @NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
 public class AccountOperation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,4 +25,6 @@ public class AccountOperation {
     @ManyToOne
     @JoinColumn(name = "performed_by")
     private User performedBy;
+
+
 }
