@@ -370,18 +370,28 @@ public class BankServiceImpl implements BankAccountsService {
                 .collect(Collectors.toList());
     }
     @Override
-    public DashboardDTO getDashboardData(Pageable pageable) {
+    public DashboardDTO getDashboardData(String userId, Pageable pageable) throws CustomerNotFoundException {
         DashboardDTO dashboard = new DashboardDTO();
 
-        // Summary data
-        dashboard.setTotalCustomers(customerRepository.count());
-        dashboard.setTotalAccounts(bankAccountRepository.count());
-        dashboard.setTotalBalance(bankAccountRepository.findAll().stream()
+        // Fetch the user and corresponding customer
+        User user = userRepository.findByUsername(userId)
+                .orElseThrow(() -> new CustomerNotFoundException("User not found: " + userId));
+        Customer customer = customerRepository.findByEmail(user.getEmail())
+                .orElseThrow(() -> new CustomerNotFoundException("Customer not found for user: " + userId));
+
+        // Summary data for the specific user
+        List<BankAccount> userAccounts = bankAccountRepository.findByCustomerId(customer.getId());
+        dashboard.setTotalAccounts(userAccounts.size());
+        dashboard.setTotalBalance(userAccounts.stream()
                 .mapToDouble(BankAccount::getBalance)
                 .sum());
+        dashboard.setTotalCustomers(1); // For a user-specific dashboard, this is always 1 (themselves)
 
-        // Paginated recent transactions
-        Page<AccountOperation> transactionPage = accountOperationRepository.findAll(pageable);
+        // Paginated recent transactions for the user's accounts
+        List<String> accountIds = userAccounts.stream().map(BankAccount::getId).collect(Collectors.toList());
+        Page<AccountOperation> transactionPage = accountIds.isEmpty() ?
+                Page.empty(pageable) :
+                accountOperationRepository.findByBankAccountIdIn(accountIds, pageable);
         dashboard.setRecentTransactions(transactionPage.getContent().stream()
                 .map(dtoMapper::fromAccountOperation)
                 .collect(Collectors.toList()));

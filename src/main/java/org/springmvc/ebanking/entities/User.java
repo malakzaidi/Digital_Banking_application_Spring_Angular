@@ -33,6 +33,11 @@ public class User {
     private Date createdAt;
     private Date updatedAt;
 
+    @Column
+    private String phone;
+    @Column
+    private String address;
+
     private boolean enabled = true;
 
     @ManyToMany(fetch = FetchType.EAGER)

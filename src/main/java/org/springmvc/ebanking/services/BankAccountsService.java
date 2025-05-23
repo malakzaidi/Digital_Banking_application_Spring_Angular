@@ -68,5 +68,7 @@ public interface BankAccountsService {
 
    List<TransactionHistoryDTO> getTransactionHistory(String userId, Pageable pageable) throws CustomerNotFoundException;
 
-   DashboardDTO getDashboardData(Pageable pageable);
+   DashboardDTO getDashboardData(String userId, Pageable pageable) throws CustomerNotFoundException;
+
+
 }

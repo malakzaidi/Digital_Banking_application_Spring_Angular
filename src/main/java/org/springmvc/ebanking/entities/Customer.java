@@ -31,6 +31,10 @@ public class Customer {
     private Date createdAt;
     private Date updatedAt;
 
+    @OneToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = new Date();

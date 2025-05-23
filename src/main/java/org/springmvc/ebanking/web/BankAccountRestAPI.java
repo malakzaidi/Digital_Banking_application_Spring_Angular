@@ -268,13 +268,6 @@ public class BankAccountRestAPI {
         List<TransactionHistoryDTO> history = bankAccountService.getTransactionHistory(userId, pageable);
         return ResponseEntity.ok(history);
     }
-    @GetMapping("/dashboard")
-    @PreAuthorize("hasAnyRole('ROLE_USER', 'ROLE_ADMIN')")
-    public DashboardDTO getDashboardData(
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "size", defaultValue = "5") int size) {
-        log.info("Fetching dashboard data, page: {}, size: {}", page, size);
-        Pageable pageable = PageRequest.of(page, size);
-        return bankAccountService.getDashboardData(pageable);
-    }
+
+
 }
